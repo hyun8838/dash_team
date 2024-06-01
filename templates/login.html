@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login to Admin Dashboard</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom styles -->
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        form {
+            width: 300px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <form method="post">
+        <h2 class="text-center mb-4">로그인</h2>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-danger" role="alert">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        <div class="form-group">
+            <input type="text" name="username" class="form-control" placeholder="사용자 이름" required>
+        </div>
+        <div class="form-group">
+            <input type="password" name="password" class="form-control" placeholder="비밀번호" required>
+        </div>
+        <div class="form-group">
+            <button type="submit" class="btn btn-primary btn-block">로그인</button>
+        </div>
+        <p class="text-center">계정이 없으신가요? <a href="{{ url_for('signup') }}">가입하기</a></p>
+    </form>
+</body>
+</html>
