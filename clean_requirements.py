@@ -4,7 +4,7 @@ import re
 input_file = 'requirements.txt'
 output_file = 'compatible_requirements.txt'
 
-# 파일을 읽고 변환
+
 with open(input_file, 'r') as infile, open(output_file, 'w') as outfile:
     for line in infile:
         # "@" 문자를 기준으로 앞의 패키지명만 추출
