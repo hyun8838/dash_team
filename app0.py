@@ -13,6 +13,7 @@ import json
 
 from waitress import serve
 
+from arppu_page import layout as arppu_layout
 
 
 # Create a Dash instance within the Flask app
@@ -50,7 +51,7 @@ sidebar = html.Div(
                 dbc.NavLink("재무", href="/dashboard/page-2", active="exact"),
                 dbc.NavLink("마케팅", href="/dashboard/page-3", active="exact"),
                 dbc.NavLink("고객 충성도 (재구매)", href="/dashboard/page-4", active="exact"),
-                dbc.NavLink("성과지표 (ROI, APPRU)", href="/dashboard/page-5", active="exact"),
+                dbc.NavLink("성과지표 (APPRU)", href="/dashboard/page-5", active="exact"),
                 ### Add logout button
                 dbc.NavLink("로그아웃", href="/logout", active="exact")
             ],
@@ -87,7 +88,7 @@ def render_page_content(pathname):
     elif pathname == "/dashboard/page-4":
         return html.P("페이지 4")
     elif pathname == "/dashboard/page-5":
-        return html.P("페이지 5")
+        return arppu_layout
     return dcc.Location(pathname="/login", id="redirect-login")
     # If the user tries to reach a different page, return a 404 message
     # return html.Div(
