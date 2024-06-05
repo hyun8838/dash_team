@@ -1,149 +1,120 @@
-{
-  "nbformat": 4,
-  "nbformat_minor": 0,
-  "metadata": {
-    "colab": {
-      "provenance": [],
-      "authorship_tag": "ABX9TyNSqwBoKp0GJDNuw+mIPrEe"
-    },
-    "kernelspec": {
-      "name": "python3",
-      "display_name": "Python 3"
-    },
-    "language_info": {
-      "name": "python"
-    }
-  },
-  "cells": [
-    {
-      "cell_type": "code",
-      "execution_count": null,
-      "metadata": {
-        "id": "H-mIMY25b-Ki"
-      },
-      "outputs": [],
-      "source": [
-        "# !pip install pmdarima\n",
-        "import pandas as pd\n",
-        "import numpy as np\n",
-        "from sklearn.pipeline import Pipeline\n",
-        "from sklearn.impute import SimpleImputer\n",
-        "from sklearn.preprocessing import StandardScaler, OneHotEncoder\n",
-        "from sklearn.compose import ColumnTransformer\n",
-        "from sklearn.compose import make_column_selector\n",
-        "import pmdarima as pm\n",
-        "\n",
-        "class AutoArimaPipeline:\n",
-        "    def __init__(self):\n",
-        "        pipe1 = Pipeline([\n",
-        "            ('step1', SimpleImputer(strategy=\"mean\")),\n",
-        "            ('step2', StandardScaler()),\n",
-        "        ])\n",
-        "\n",
-        "        pipe2 = Pipeline([\n",
-        "            ('step1', SimpleImputer(strategy=\"most_frequent\")),\n",
-        "            ('step2', OneHotEncoder()),\n",
-        "        ])\n",
-        "\n",
-        "        self.transform = ColumnTransformer([\n",
-        "            ('num', pipe1, make_column_selector(dtype_include=np.number)),\n",
-        "            ('cat', pipe2, make_column_selector(dtype_exclude=np.number)),\n",
-        "        ])\n",
-        "\n",
-        "    def fit(self, train_data):\n",
-        "        self.models = []\n",
-        "        for data in train_data:\n",
-        "            auto_arima_model = pm.auto_arima(data['마케팅비용'])\n",
-        "            self.models.append(auto_arima_model)\n",
-        "\n",
-        "    def predict(self, test_data):\n",
-        "        predictions = []\n",
-        "        for i, data in enumerate(test_data):\n",
-        "            marketing_pred = []\n",
-        "            pred_upper = []\n",
-        "            pred_lower = []\n",
-        "\n",
-        "            for new_ob in data['마케팅비용']:\n",
-        "                # 새로운 데이터를 이용하여 모델 업데이트\n",
-        "                self.models[i].update(new_ob)\n",
-        "\n",
-        "                # 예측\n",
-        "                fc, conf = self.models[i].predict(n_periods=1, return_conf_int=True)\n",
-        "                fc = pd.Series(fc)\n",
-        "\n",
-        "                marketing_pred.append(fc.values[0])\n",
-        "                pred_upper.append(conf[0][1])\n",
-        "                pred_lower.append(conf[0][0])\n",
-        "\n",
-        "            marketing_pred = pd.Series(marketing_pred, index=data.index)\n",
-        "            marketing_pred = pd.DataFrame(marketing_pred).rename(columns={0: 'pred'})\n",
-        "\n",
-        "            marketing_test_pred = pd.concat([data, marketing_pred], axis=1)\n",
-        "            predictions.append(marketing_test_pred)\n",
-        "\n",
-        "        return predictions\n",
-        "\n",
-        "    # 시계열 데이터 전처리 함수\n",
-        "    def split_data_by_cluster(self, data):\n",
-        "        clusters = np.sort(data['Cluster'].unique())\n",
-        "        data['거래날짜'] = pd.to_datetime(data['거래날짜'], format='%Y-%m-%d')\n",
-        "        out = []\n",
-        "        for cluster in clusters:\n",
-        "            cluster_data = data[data['Cluster'] == cluster][['거래날짜', '마케팅비용', 'Cluster']]\n",
-        "            cluster_data = cluster_data.drop_duplicates(subset=['거래날짜']).sort_values('거래날짜')\n",
-        "            out.append(cluster_data)\n",
-        "\n",
-        "        out.append(data[['거래날짜', '마케팅비용', 'Cluster']].drop_duplicates(subset=['거래날짜']).sort_values('거래날짜'))\n",
-        "        return out\n",
-        "\n",
-        "    def time_train_test_split(self, data, test_size=0.2):\n",
-        "        test_size = 1 - test_size\n",
-        "        data.set_index('거래날짜', inplace=True)\n",
-        "\n",
-        "        train = data[:int(test_size * len(data))]\n",
-        "        test = data[int(test_size * len(data)):]\n",
-        "        return train, test\n",
-        "\n",
-        "    def create_train_test_by_cluster(self, data, out):\n",
-        "        clusters = np.append(np.sort(data['Cluster'].unique()), np.sort(data['Cluster'].unique())[-1] + 1)\n",
-        "        train = []\n",
-        "        test = []\n",
-        "\n",
-        "        for cluster_name, cluster_data in zip(clusters, out):\n",
-        "            cluster_train, cluster_test = self.time_train_test_split(cluster_data)\n",
-        "            train.append(cluster_train)\n",
-        "            test.append(cluster_test)\n",
-        "\n",
-        "        return train, test\n",
-        "\n",
-        "    def run(self, data, test_size=0.2):\n",
-        "        out = self.split_data_by_cluster(data)\n",
-        "        train, test = self.create_train_test_by_cluster(data, out)\n",
-        "\n",
-        "        self.fit(train)\n",
-        "        predictions = self.predict(test)\n",
-        "\n",
-        "        for i, prediction in enumerate(predictions):\n",
-        "            print(f\"Predictions for Cluster {i}:\")\n",
-        "            print(prediction)\n",
-        "\n",
-        "# Usage 1:\n",
-        "# auto_arima_pipeline = AutoArimaPipeline()\n",
-        "\n",
-        "# auto_arima_pipeline.fit(train)\n",
-        "\n",
-        "# predictions = auto_arima_pipeline.predict(test)\n",
-        "\n",
-        "# output\n",
-        "# for i, prediction in enumerate(predictions):\n",
-        "#     print(f\"Predictions for Cluster {i}:\")\n",
-        "#     print(prediction)\n",
-        "\n",
-        "# Usage 2:\n",
-        "# auto_arima_pipeline = AutoArimaPipeline()\n",
-        "\n",
-        "# auto_arima_pipeline.run(ecommerce_df)"
-      ]
-    }
-  ]
-}
+# !pip install pmdarima
+import pandas as pd
+import numpy as np
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.compose import make_column_selector
+import pmdarima as pm
+
+class AutoArimaPipeline:
+    def __init__(self):
+        pipe1 = Pipeline([
+            ('step1', SimpleImputer(strategy="mean")),
+            ('step2', StandardScaler()),
+        ])
+
+        pipe2 = Pipeline([
+            ('step1', SimpleImputer(strategy="most_frequent")),
+            ('step2', OneHotEncoder()),
+        ])
+
+        self.transform = ColumnTransformer([
+            ('num', pipe1, make_column_selector(dtype_include=np.number)),
+            ('cat', pipe2, make_column_selector(dtype_exclude=np.number)),
+        ])
+
+    def fit(self, train_data):
+        self.models = []
+        for data in train_data:
+            auto_arima_model = pm.auto_arima(data['마케팅비용'])
+            self.models.append(auto_arima_model)
+
+    def predict(self, test_data):
+        predictions = []
+        for i, data in enumerate(test_data):
+            marketing_pred = []
+            pred_upper = []
+            pred_lower = []
+
+            for new_ob in data['마케팅비용']:
+                # 새로운 데이터를 이용하여 모델 업데이트
+                self.models[i].update(new_ob)
+
+                # 예측
+                fc, conf = self.models[i].predict(n_periods=1, return_conf_int=True)
+                fc = pd.Series(fc)
+
+                marketing_pred.append(fc.values[0])
+                pred_upper.append(conf[0][1])
+                pred_lower.append(conf[0][0])
+
+            marketing_pred = pd.Series(marketing_pred, index=data.index)
+            marketing_pred = pd.DataFrame(marketing_pred).rename(columns={0: 'pred'})
+
+            marketing_test_pred = pd.concat([data, marketing_pred], axis=1)
+            predictions.append(marketing_test_pred)
+
+        return predictions
+
+    # 시계열 데이터 전처리 함수
+    def split_data_by_cluster(self, data):
+        clusters = np.sort(data['Cluster'].unique())
+        data['거래날짜'] = pd.to_datetime(data['거래날짜'], format='%Y-%m-%d')
+        out = []
+        for cluster in clusters:
+            cluster_data = data[data['Cluster'] == cluster][['거래날짜', '마케팅비용', 'Cluster']]
+            cluster_data = cluster_data.drop_duplicates(subset=['거래날짜']).sort_values('거래날짜')
+            out.append(cluster_data)
+
+        out.append(data[['거래날짜', '마케팅비용', 'Cluster']].drop_duplicates(subset=['거래날짜']).sort_values('거래날짜'))
+        return out
+
+    def time_train_test_split(self, data, test_size=0.2):
+        test_size = 1 - test_size
+        data.set_index('거래날짜', inplace=True)
+
+        train = data[:int(test_size * len(data))]
+        test = data[int(test_size * len(data)):]
+        return train, test
+
+    def create_train_test_by_cluster(self, data, out):
+        clusters = np.append(np.sort(data['Cluster'].unique()), np.sort(data['Cluster'].unique())[-1] + 1)
+        train = []
+        test = []
+
+        for cluster_name, cluster_data in zip(clusters, out):
+            cluster_train, cluster_test = self.time_train_test_split(cluster_data)
+            train.append(cluster_train)
+            test.append(cluster_test)
+
+        return train, test
+
+    def run(self, data, test_size=0.2):
+        out = self.split_data_by_cluster(data)
+        train, test = self.create_train_test_by_cluster(data, out)
+
+        self.fit(train)
+        predictions = self.predict(test)
+
+        for i, prediction in enumerate(predictions):
+            print(f"Predictions for Cluster {i}:")
+            print(prediction)
+
+# Usage 1:
+# auto_arima_pipeline = AutoArimaPipeline()
+
+# auto_arima_pipeline.fit(train)
+
+# predictions = auto_arima_pipeline.predict(test)
+
+# output
+# for i, prediction in enumerate(predictions):
+#     print(f"Predictions for Cluster {i}:")
+#     print(prediction)
+
+# Usage 2:
+# auto_arima_pipeline = AutoArimaPipeline()
+
+# auto_arima_pipeline.run(ecommerce_df)
