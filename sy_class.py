@@ -4,7 +4,7 @@
 # In[208]:
 
 # 코호트 분석 관련 class
-# asdf
+# as
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
