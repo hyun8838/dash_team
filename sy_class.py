@@ -121,3 +121,87 @@ class CustomerCategoryAnalysis:
                  text=ka['재구매율'].map(lambda x: f'{x:.3f}'))  
         return fig
 
+
+# 재구매 여부 예측 관련 class
+## 전처리 class
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.pipeline import Pipeline
+
+class Preprocessor:
+    def __init__(self, numeric_features, categorical_features):
+        self.numeric_features = numeric_features
+        self.categorical_features = categorical_features
+        self.numeric_transformer = Pipeline(steps=[('scaler', StandardScaler())])
+        self.categorical_transformer = Pipeline(steps=[('onehot', OneHotEncoder())])
+        self.preprocessor = ColumnTransformer(
+            transformers=[
+                ('num', self.numeric_transformer, self.numeric_features),
+                ('cat', self.categorical_transformer, self.categorical_features)
+            ])
+
+    def fit_transform(self, df):
+        return self.preprocessor.fit_transform(df)
+
+## logistic regression 관련 class
+import numpy as np
+import pandas as pd
+import pickle as pkl
+from sklearn.model_selection import train_test_split
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, confusion_matrix
+
+class RebuyPredictionModel:
+    def __init__(self, data, target_column):
+        self.data = data
+        self.target_column = target_column
+        self.X_train = None
+        self.y_train = None
+        self.model = None
+        self.trans = None
+
+    def train_test_split(self, test_size=0.3):
+        train, test = train_test_split(self.data, test_size=test_size)
+        return train, test
+
+    def preprocess_data(self, train):
+        X_cols = train.drop(columns=[self.target_column]).columns
+        numeric_features = train[X_cols].select_dtypes(include=np.number).columns.tolist()
+        categorical_features = train[X_cols].select_dtypes(exclude=np.number).columns.tolist()
+        trans = ColumnTransformer(
+            transformers=[
+                ('num', StandardScaler(), numeric_features),
+                ('cat', OneHotEncoder(), categorical_features)
+            ])
+        trans.fit(train[X_cols])
+        X_train = trans.transform(train[X_cols])
+        num_features = numeric_features
+        cat_features = trans.named_transformers_['cat'].get_feature_names_out(categorical_features)
+        all_features = list(num_features) + list(cat_features)
+        X_train = pd.DataFrame(X_train, columns=all_features)
+        y_train = train[self.target_column]
+        return X_train, y_train, trans
+
+    def train_model(self, X_train, y_train):
+        model = LogisticRegression()
+        model.fit(X_train, y_train)
+        return model
+
+    def save_model_and_transformation(self, model, trans, model_file="model.pkl", trans_file="transform.pkl"):
+        with open(model_file, "wb") as f:
+            pkl.dump(model, f)
+        with open(trans_file, "wb") as f:
+            pkl.dump(trans, f)
+
+    def evaluate_model(self, model, trans, test):
+        X_test = trans.transform(test.drop(columns=[self.target_column]))
+        pred = model.predict(X_test)
+        y_test = test[self.target_column]
+        accuracy = np.mean(pred == y_test)
+        confusion_matrix = pd.crosstab(y_test, pred)
+        return accuracy, confusion_matrix
+
+
+
