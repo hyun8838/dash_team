@@ -1,167 +1,138 @@
-{
-  "nbformat": 4,
-  "nbformat_minor": 0,
-  "metadata": {
-    "colab": {
-      "provenance": [],
-      "authorship_tag": "ABX9TyN+T2aTD2KUXvNIs0f4ZsBI"
-    },
-    "kernelspec": {
-      "name": "python3",
-      "display_name": "Python 3"
-    },
-    "language_info": {
-      "name": "python"
-    }
-  },
-  "cells": [
-    {
-      "cell_type": "code",
-      "execution_count": null,
-      "metadata": {
-        "id": "CAcsiXE0VT_X"
-      },
-      "outputs": [],
-      "source": [
-        "import sqlite3\n",
-        "from sqlite3 import Error\n",
-        "import pandas as pd\n",
-        "import numpy as np\n",
-        "from sklearn.model_selection import train_test_split\n",
-        "import pickle as pkl\n",
-        "import matplotlib.pyplot as plt\n",
-        "import seaborn as sns\n",
-        "import warnings\n",
-        "warnings.filterwarnings(action='ignore')\n",
-        "\n",
-        "\n",
-        "\n",
-        "\n",
-        "def create_table(db_name, csv_file, table_name):\n",
-        "  conn = sqlite3.connect(db_name)\n",
-        "  c = conn.cursor()\n",
-        "  df = pd.read_csv(csv_file)\n",
-        "  df.to_sql(table_name, conn, index=False, if_exists='replace')\n",
-        "  conn.commit()\n",
-        "  conn.close()\n",
-        "\n",
-        "# source_table_name: table_name as train, test, costumor_info, data_df, ...\n",
-        "\n",
-        "def create_predict_table(db_name, source_table_name, table_name):\n",
-        "  conn = sqlite3.connect(db_name)\n",
-        "  c = conn.cursor()\n",
-        "  # create predict table\n",
-        "\n",
-        "  c.execute(\"PRAGMA table_info(source_table_name)\")\n",
-        "  columns_info = c.fetchall()\n",
-        "  columns = [col_info[1] for col_info in columns_info]\n",
-        "  columns_str = ', '.join(columns)\n",
-        "\n",
-        "  create_predict_query = f\"CREATE TABLE predict({columns_str}, predict TEXT)\"\n",
-        "  c.execute(create_predict_query)\n",
-        "\n",
-        "  conn.commit()\n",
-        "  conn.close()\n",
-        "\n",
-        "def check_tables(db_name):\n",
-        "    \"\"\"\n",
-        "    Check and print all table names in the database.\n",
-        "    \"\"\"\n",
-        "    conn = sqlite3.connect(db_name)\n",
-        "    c = conn.cursor()\n",
-        "    c.execute(\"SELECT name FROM sqlite_master WHERE type='table';\")\n",
-        "    tables = c.fetchall()\n",
-        "    conn.close()\n",
-        "    return [table[0] for table in tables]\n",
-        "\n",
-        "\n",
-        "\n",
-        "\n",
-        "def print_table(db_name, table_name):\n",
-        "  conn = sqlite3.connect(db_name)\n",
-        "  c = conn.cursor()\n",
-        "\n",
-        "  # print table\n",
-        "  print(\"\\n\\n\" + table_name + \"...\")\n",
-        "  query = c.execute(\"SELECT * FROM \" + table_name)\n",
-        "  items = c.fetchall()\n",
-        "  for item in items:\n",
-        "    print(item)\n",
-        "\n",
-        "  conn.commit()\n",
-        "  conn.close()\n",
-        "\n",
-        "\n",
-        "# db에서 데이터 df로 불러오기\n",
-        "def db_to_df(db_name, table_name):\n",
-        "    con = sqlite3.connect(db_name)\n",
-        "    cur = con.cursor()\n",
-        "    query = cur.execute( \"SELECT * From \" + table_name  )\n",
-        "    cols = [column[0] for column in query.description]\n",
-        "    result = pd.DataFrame.from_records(data=query.fetchall(), columns=cols)\n",
-        "    con.close()\n",
-        "    return result\n",
-        "\n",
-        "# df를 db로 저장\n",
-        "def df_to_db(df, db_name, table_name):\n",
-        "  conn = sqlite3.connect(db_name)\n",
-        "  df.to_sql(table_name, conn, if_exists = 'append', index = False)\n",
-        "  conn.close()\n",
-        "\n",
-        "# train_test_split\n",
-        "def data_split(df, test_size, random_state):\n",
-        "  train, test = train_test_split(df, test_size, random_state)\n",
-        "\n",
-        "\n",
-        "def create_pickle(obj, file):\n",
-        "    with open(file, 'wb') as f:\n",
-        "        pkl.dump(obj, f)\n",
-        "\n",
-        "def read_pickle(file):\n",
-        "    with open(file, 'rb') as f:\n",
-        "        out = pkl.load(f)\n",
-        "    return out\n",
-        "\n",
-        "\n",
-        "# 여러 데이터 추가\n",
-        "def df_to_db(dat, db_name, table_name):\n",
-        "  conn = sqlite3.connect(db_name)\n",
-        "  dat.to_sql(table_name, conn, if_exists = 'append', index = False)\n",
-        "  conn.close()\n",
-        "\n",
-        "\n",
-        "\n",
-        "def show_all(db_name, table_name):\n",
-        "  conn = sqlite3.connect(db_name)\n",
-        "  c = conn.cursor()\n",
-        "\n",
-        "  c.execute(\"SELECT rowid, * FROM \" + table_name)\n",
-        "  items = c.petchall()\n",
-        "\n",
-        "  for item in items:\n",
-        "    print(item)\n",
-        "\n",
-        "  conn.commit()\n",
-        "  conn.close()\n",
-        "\n",
-        "\n",
-        "def call_x_value(db_name, table_name, ind):\n",
-        "    conn = sqlite3.connect(db_name)\n",
-        "    c = conn.cursor()\n",
-        "    query = c.execute(\"SELECT * FROM \" + table_name + \" WHERE rowid={}\".format(ind))\n",
-        "    cols = [column[0] for column in c.description]\n",
-        "    out = pd.DataFrame.from_records(data=query.fetchall(), columns=cols)\n",
-        "    conn.close()\n",
-        "    return out\n",
-        "\n",
-        "# Usage:\n",
-        "# db_name = \"/content/drive/MyDrive/데이터애널리스틱스특수연구3/project/통합/TRAIN.DB\"\n",
-        "\n",
-        "# check_tables(db_name)\n",
-        "\n",
-        "# ecommerce_df = db_to_df(db_name = db_name, table_name = \"train_table\")\n",
-        "# ecommerce_df"
-      ]
-    }
-  ]
-}
+import sqlite3
+from sqlite3 import Error
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+import pickle as pkl
+import matplotlib.pyplot as plt
+import seaborn as sns
+import warnings
+warnings.filterwarnings(action='ignore')
+
+
+
+
+def create_table(db_name, csv_file, table_name):
+  conn = sqlite3.connect(db_name)
+  c = conn.cursor()
+  df = pd.read_csv(csv_file)
+  df.to_sql(table_name, conn, index=False, if_exists='replace')
+  conn.commit()
+  conn.close()
+
+# source_table_name: table_name as train, test, costumor_info, data_df, ...
+
+def create_predict_table(db_name, source_table_name, table_name):
+  conn = sqlite3.connect(db_name)
+  c = conn.cursor()
+  # create predict table
+
+  c.execute("PRAGMA table_info(source_table_name)")
+  columns_info = c.fetchall()
+  columns = [col_info[1] for col_info in columns_info]
+  columns_str = ', '.join(columns)
+
+  create_predict_query = f"CREATE TABLE predict({columns_str}, predict TEXT)"
+  c.execute(create_predict_query)
+
+  conn.commit()
+  conn.close()
+
+def check_tables(db_name):
+    """
+    Check and print all table names in the database.
+    """
+    conn = sqlite3.connect(db_name)
+    c = conn.cursor()
+    c.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    tables = c.fetchall()
+    conn.close()
+    return [table[0] for table in tables]
+
+
+
+
+def print_table(db_name, table_name):
+  conn = sqlite3.connect(db_name)
+  c = conn.cursor()
+
+  # print table
+  print("\n\n" + table_name + "...")
+  query = c.execute("SELECT * FROM " + table_name)
+  items = c.fetchall()
+  for item in items:
+    print(item)
+
+  conn.commit()
+  conn.close()
+
+
+# db에서 데이터 df로 불러오기
+def db_to_df(db_name, table_name):
+    con = sqlite3.connect(db_name)
+    cur = con.cursor()
+    query = cur.execute( "SELECT * From " + table_name  )
+    cols = [column[0] for column in query.description]
+    result = pd.DataFrame.from_records(data=query.fetchall(), columns=cols)
+    con.close()
+    return result
+
+# df를 db로 저장
+def df_to_db(df, db_name, table_name):
+  conn = sqlite3.connect(db_name)
+  df.to_sql(table_name, conn, if_exists = 'append', index = False)
+  conn.close()
+
+# train_test_split
+def data_split(df, test_size, random_state):
+  train, test = train_test_split(df, test_size, random_state)
+
+
+def create_pickle(obj, file):
+    with open(file, 'wb') as f:
+        pkl.dump(obj, f)
+
+def read_pickle(file):
+    with open(file, 'rb') as f:
+        out = pkl.load(f)
+    return out
+
+
+# 여러 데이터 추가
+def df_to_db(dat, db_name, table_name):
+  conn = sqlite3.connect(db_name)
+  dat.to_sql(table_name, conn, if_exists = 'append', index = False)
+  conn.close()
+
+
+
+def show_all(db_name, table_name):
+  conn = sqlite3.connect(db_name)
+  c = conn.cursor()
+
+  c.execute("SELECT rowid, * FROM " + table_name)
+  items = c.petchall()
+
+  for item in items:
+    print(item)
+
+  conn.commit()
+  conn.close()
+
+
+def call_x_value(db_name, table_name, ind):
+    conn = sqlite3.connect(db_name)
+    c = conn.cursor()
+    query = c.execute("SELECT * FROM " + table_name + " WHERE rowid={}".format(ind))
+    cols = [column[0] for column in c.description]
+    out = pd.DataFrame.from_records(data=query.fetchall(), columns=cols)
+    conn.close()
+    return out
+
+# Usage:
+# db_name = "/content/drive/MyDrive/데이터애널리스틱스특수연구3/project/통합/TRAIN.DB"
+
+# check_tables(db_name)
+
+# ecommerce_df = db_to_df(db_name = db_name, table_name = "train_table")
+# ecommerce_df
