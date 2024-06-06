@@ -118,9 +118,12 @@ def create_new_table(data_frame, data_table_name):
     cursor.execute(f"DROP TABLE IF EXISTS {data_table_name}")
     print(f"\n\nExisting table '{data_table_name}' dropped, and new table is created")
     
+    # Check if 'rowid' column exists and remove it
+    if 'rowid' in data_frame.columns:
+        data_frame = data_frame.drop(columns=['rowid'])
+    
     # Create a new table and insert data from the DataFrame
-    df = data_frame
-    df.to_sql(data_table_name, con, index=False, if_exists='replace')
+    data_frame.to_sql(data_table_name, con, index=False, if_exists='replace')
     
     # Commit the transaction and close the connection
     con.commit()

@@ -12,6 +12,7 @@ import datetime
 from sklearn.preprocessing import StandardScaler
 from mpl_toolkits.mplot3d import Axes3D
 import seaborn as sns
+from sklearn.base import BaseEstimator, TransformerMixin
 
 
 # In[35]:
@@ -27,7 +28,6 @@ import seaborn as sns
 # In[121]:
 
 
-import pandas as pd
 
 class bw_preprocessing:
     def __init__(self, dataframe):
@@ -560,4 +560,6 @@ class fifth_dash:
 
 # coupon_sales = coupon_sales_processor.get_coupon_sales()
 # coupon_sales
+
+
 
