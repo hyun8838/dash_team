@@ -5,7 +5,6 @@
 
 
 import sqlite3
-import schedule
 import time
 
 import pandas as pd
