@@ -83,7 +83,6 @@ class mj_visualization:
         fig.update_yaxes(title_text=y_title_secondary, secondary_y=True)
         
         fig.update_layout(title=f'{x_title}별 총 매출액, 결제 유저 수 및 ARPPU 비교', legend=dict(x=0.1, y=1.1, orientation='h'))
-        fig.show()
         return fig
     
     def month_calculate_and_plot_arppu(self):

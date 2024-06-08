@@ -2,7 +2,10 @@ import dash
 import dash_bootstrap_components as dbc
 from dash import Input, Output, dcc, html
 
-app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
+# page-5에 필요한 부분 import
+from arppu_page import layout as arppu_layout
+
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 # the style arguments for the sidebar. We use position:fixed and a fixed width
 SIDEBAR_STYLE = {
@@ -64,7 +67,7 @@ def render_page_content(pathname):
     elif pathname == "/page-4":
         return html.P("페이지 4")
     elif pathname == "/page-5":
-        return html.P("페이지 5")
+        return arppu_layout
     # If the user tries to reach a different page, return a 404 message
     return html.Div(
         [

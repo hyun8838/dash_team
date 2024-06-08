@@ -1,31 +1,29 @@
-import dash
-from dash import Input, Output, State, html, dcc, dash_table, MATCH, ALL, ctx
+from dash import Dash, html, dcc, dash_table, Input, Output, State
 import dash_mantine_components as dmc
-
+import warnings
 import database_bw
 from bw_class import RFMProcessor
 import mj_class
 
-import warnings
 warnings.filterwarnings('ignore')
 
-layout = html.Div(
-    style= {'overflow-x':'hidden'},
+app = Dash(__name__)
+
+app.layout = html.Div(
+    style={'overflow-x': 'hidden'},
     children=[
         dmc.Group(
-            direction = 'column',
-            grow = True,
-            position = 'center',
-            spacing = 'sm',
+            direction='column',
+            grow=True,
+            position='center',
+            spacing='sm',
             children=[
-                dmc.Title(children='ARPPU Analysis', order=3, style={'font-family':'IntegralCF-ExtraBold', 'text-align':'center', 'color':'slategray'}),
-                # dmc.Divider(label='Overview', labelPosition='center', size='xl'),
+                dmc.Title(children='ARPPU Analysis', order=3, style={'font-family': 'IntegralCF-ExtraBold', 'text-align': 'center', 'color': 'slategray'}),
                 dmc.Paper(
-                    shadow = 'md',
-                    m = 'sm',
-                    p = 'md',
-                    #style = {'width':'90%'},
-                    withBorder = True,
+                    shadow='md',
+                    m='sm',
+                    p='md',
+                    withBorder=True,
                     children=[
                         dmc.Stack(
                             children=[
@@ -41,7 +39,6 @@ layout = html.Div(
                                                 {'label': 'Area Analysis', 'value': 'area'},
                                                 {'label': 'Subscription Period Analysis', 'value': 'subscription'},
                                                 {'label': 'Area Analysis(map)', 'value': 'area(map)'}
-                                                
                                             ],
                                             value='monthly'
                                         ),
@@ -68,8 +65,6 @@ layout = html.Div(
         )
     ]
 )
-
-from app import app
 
 @app.callback(
     [Output('arppu-graph', 'figure'),Output('apriori-results', 'children')],
@@ -115,3 +110,6 @@ def update_arppu_chart(selected_analysis):
     )
 
     return graph_figure, apriori_table
+
+if __name__ == '__main__':
+    app.run_server(port=8888, debug = True)
