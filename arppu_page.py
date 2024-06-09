@@ -1,25 +1,13 @@
 import dash
 from dash import Input, Output, State, html, dcc, dash_table, MATCH, ALL, ctx
 import dash_mantine_components as dmc
-from dash_iconify import DashIconify
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-from datetime import datetime, time, timedelta
-import time as time_pck
-import os
-import dash_daq as daq
-import plotly.express as px
-import plotly.graph_objects as go
-#----------------------------------
+
 import database_bw
 from bw_class import RFMProcessor
 import mj_class
 
 import warnings
 warnings.filterwarnings('ignore')
-
-from app import app
 
 layout = html.Div(
     style= {'overflow-x':'hidden'},
@@ -66,9 +54,9 @@ layout = html.Div(
                                     html.P("ARPPU를 증가시키기 위해서는 한번에 결제를 더 많이 할 수 있도록 유도해야합니다. "
                                            "고객이 구매할 때 다른 제품 및 서비스도 제안할 수 있는 Cross-Selling 방법을 생각해보아야합니다. "
                                            "아래의 표를 통해 A 제품을 구매한 고객이 B제품도 구매했는 지 알아 볼 수 있습니다."),
-                                    # html.P("지지도: 두 제품을 모두 구매한 고객 수의 비율"
-                                    #        "신뢰도: A를 구매한 고객 중 B를 구매한 고객의 비율"
-                                    #        "향상도: 마케팅 효과 증가율"),
+                                    html.P("지지도: 두 제품을 모두 구매한 고객 수의 비율"),
+                                    html.P("신뢰도: A를 구매한 고객 중 B를 구매한 고객의 비율"),
+                                    html.P("향상도: 마케팅 효과 증가율"),
                                     html.Div(id='apriori-results')
                                 ])
                             ]
@@ -81,37 +69,31 @@ layout = html.Div(
     ]
 )
 
+from app import app
+
 @app.callback(
     [Output('arppu-graph', 'figure'),Output('apriori-results', 'children')],
     Input('arppu-select', 'value')
 )
 
-def process_and_visualize(df):
+def update_arppu_chart(selected_analysis):
+    df = database_bw.making_dataframe_train_db('train_table')
     df = mj_class.mj_preprocessing(df)
     df.apply_my_function()
     df = df.return_dataframe()
 
-    # RFM 데이터 프레임
-    processor = RFMProcessor(df) 
+    processor = RFMProcessor(df)
     rfm_without_outliers, rfm_outliers, rfm_without_outliers_log, X_scaled = processor.process_data()
     processor.fit_clustering(X_scaled, n_clusters=4)
     rfm = processor.predict(df)
 
     viz = mj_class.mj_visualization(df, rfm)
-    return viz
 
-
-def update_arppu_chart(selected_analysis):
-
-    # 지금 여러 DB가 있는데 일단 헷갈려서 trainDB 코드만 작성(추후 수정하기!!!!!)
-    df = database_bw.making_dataframe_train_db('train_table')
-    viz = process_and_visualize(df)
-
-    apriori_analyzer = mj_class.mj_apriori()
+    apriori_analyzer = mj_class.mj_apriori(min_support=0.6, min_confidence=0.005, min_lift=1, top_n=5)
     apriori_results = apriori_analyzer.apriori_analysis(df)
 
     if selected_analysis == 'cluster':
-        graph_figure =  viz.cluster_calculate_and_plot_arppu()
+        graph_figure = viz.cluster_calculate_and_plot_arppu()
     elif selected_analysis == 'monthly':
         graph_figure = viz.month_calculate_and_plot_arppu()
     elif selected_analysis == 'area':
@@ -120,8 +102,6 @@ def update_arppu_chart(selected_analysis):
         graph_figure = viz.calculate_and_plot_arppu_by_subscription_period_grouped()
     elif selected_analysis == 'area(map)':
         graph_figure = viz.area_calculate_and_plot_mapbox()
-    
-
 
     apriori_table = dash_table.DataTable(
         columns=[{"name": i, "id": i} for i in apriori_results.columns],

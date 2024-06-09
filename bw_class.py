@@ -12,6 +12,7 @@ import datetime
 from sklearn.preprocessing import StandardScaler
 from mpl_toolkits.mplot3d import Axes3D
 import seaborn as sns
+from sklearn.base import BaseEstimator, TransformerMixin
 
 
 # In[35]:
@@ -27,7 +28,6 @@ import seaborn as sns
 # In[121]:
 
 
-import pandas as pd
 
 class bw_preprocessing:
     def __init__(self, dataframe):
@@ -393,50 +393,173 @@ def mapping_cluster(df):
 # bw
 
 
+# # 1번째 대시보드를 위한 class
+
+# In[2]:
+
+
+class first_dash:
+    def __init__(self, rfm_clusters):
+        self.rfm_clusters = rfm_clusters
+        self.rfm_clusters_final = None
+
+    def calculate_cluster_means(self):
+        self.rfm_clusters_grouped = self.rfm_clusters.groupby('고객분류').agg({
+            'Recency': 'mean',
+            'Frequency': 'mean',
+            'Monetary': 'mean',
+        }).round(0).reset_index()
+
+    def calculate_cluster_counts_and_revenue(self):
+        self.rfm_clusters_counts = self.rfm_clusters['고객분류'].value_counts().reset_index()
+        self.rfm_clusters_counts.columns = ['고객분류', '고객수']
+
+        self.cluster_revenue = self.rfm_clusters.groupby('고객분류')['Monetary'].sum().reset_index()
+        self.cluster_revenue.columns = ['고객분류', '매출']
+
+    def merge_cluster_data(self):
+        self.rfm_clusters_final = pd.merge(self.rfm_clusters_grouped, self.rfm_clusters_counts, on='고객분류')
+        self.rfm_clusters_final = pd.merge(self.rfm_clusters_final, self.cluster_revenue, on='고객분류')
+
+    def calculate_ratios(self):
+        self.rfm_clusters_final['고객수 비율'] = (self.rfm_clusters_final['고객수'] / self.rfm_clusters_final['고객수'].sum() * 100).round().astype(str) + '%'
+        self.rfm_clusters_final['매출 비율'] = (self.rfm_clusters_final['매출'] / self.rfm_clusters_final['매출'].sum() * 100).round().astype(str) + '%'
+
+    def rearrange_columns(self):
+        cols = self.rfm_clusters_final.columns.tolist()
+        cols = cols[0:1] + cols[-1:] + cols[1:-1]
+        self.rfm_clusters_final = self.rfm_clusters_final[cols]
+
+    def reset_index(self):
+        self.rfm_clusters_final.reset_index(drop=True, inplace=True)
+
+    def get_final_dataframe(self):
+        self.calculate_cluster_means()
+        self.calculate_cluster_counts_and_revenue()
+        self.merge_cluster_data()
+        self.calculate_ratios()
+        self.rearrange_columns()
+        self.reset_index()
+        return self.rfm_clusters_final
+
+    def calculate_ratios_as_float(self):
+        customer_ratio = self.rfm_clusters_final['고객수 비율'].str.rstrip('%').astype('float') / 100.0
+        purchase_ratio = self.rfm_clusters_final['매출 비율'].str.rstrip('%').astype('float') / 100.0
+        return customer_ratio, purchase_ratio
+
+# 사용
+# rfm_clusters = train_bw[['고객ID','Recency','Frequency','Monetary','고객분류']]
+
+# analysis = firstdash(rfm_clusters)
+# rfm_clusters_final = analysis.get_final_dataframe()
+# rfm_clusters_final
+
+
+# # 2번째는 train_bw 이용
+
+# # 3번째 대시보드를 위한 class
+
 # In[ ]:
 
 
+class thrid_dash:
+    def __init__(self, df):
+        self.df = df.copy()
+        self.monthly_clustered_customers = None
+        self.monthly_clustered_monetary = None
+
+    def create_clustered_summary(self):
+        # Group by month and clusters to get unique customer counts
+        self.monthly_clustered_customers = self.df.groupby(["월", "고객분류"])["고객ID"].nunique().unstack()
+
+        # Group by month and clusters to get total sales
+        self.monthly_clustered_monetary = self.df.groupby(["월", "고객분류"])["매출"].sum().unstack()
+
+        # Calculate total sales for each month
+        total_sales = self.df.groupby("월")["매출"].sum()
+
+        # Add total sales as a new column in the monthly_clustered_monetary DataFrame
+        self.monthly_clustered_monetary['total'] = total_sales
+
+        # Add total transactions as a new column in the monthly_clustered_monetary DataFrame
+        self.monthly_clustered_customers['total'] = self.monthly_clustered_customers.sum(axis=1)
+
+        # Extracting the month from the index and assigning it to a new column
+        self.monthly_clustered_customers['month'] = self.monthly_clustered_customers.index
+        self.monthly_clustered_monetary['month'] = self.monthly_clustered_monetary.index
+
+    def get_monthly_clustered_customers(self):
+        return self.monthly_clustered_customers
+
+    def get_monthly_clustered_monetary(self):
+        return self.monthly_clustered_monetary
+
+# 사용
+# clustered_summary = thrid(train_bw)
+# clustered_summary.create_clustered_summary()
+
+# monthly_clustered_customers = clustered_summary.get_monthly_clustered_customers()
+# monthly_clustered_monetary = clustered_summary.get_monthly_clustered_monetary()
+
+# monthly_clustered_customers
+# monthly_clustered_monetary
 
 
+# # 4번째 대시보드를 위한 class
+
+# In[4]:
+
+
+class fourth_dash:
+    def __init__(self, df):
+        self.df = df.copy()
+        self.grouped_df = None
+
+    def preprocess(self):
+        self.df.loc[self.df['쿠폰코드'] == 0, '쿠폰코드'] = 'non-coupon'
+
+    def group_by_columns(self, group_columns, sum_column):
+        self.grouped_df = self.df.groupby(group_columns)[sum_column].sum().reset_index()
+
+    def get_grouped_df(self):
+        return self.grouped_df
+
+# # 사용
+# grouped_df_processor = fourth_dash(train_bw)
+# grouped_df_processor.preprocess()
+# grouped_df_processor.group_by_columns(['제품카테고리', '월', '쿠폰상태'], '매출')
+
+# grouped_df = grouped_df_processor.get_grouped_df()
+# grouped_df
+
+
+# # 5번째 대시보드를 위한 class
 
 # In[ ]:
 
 
+class fifth_dash:
+    def __init__(self, df):
+        self.df = df.copy()
+        self.coupon_sales = None
 
+    def preprocess(self):
+        self.df.loc[self.df['쿠폰코드'] == 0, '쿠폰코드'] = 'non-coupon'
 
+    def calculate_coupon_sales(self):
+        self.coupon_sales = self.df.groupby(['쿠폰코드', '고객분류', '제품카테고리'])['매출'].sum()
+        self.coupon_sales = self.coupon_sales.reset_index().sort_values(by=['쿠폰코드', '매출'], ascending=[True, False])
 
-# In[ ]:
+    def get_coupon_sales(self):
+        return self.coupon_sales
 
+# # 사용
+# coupon_sales_processor = fifth_dash(train_bw)
+# coupon_sales_processor.preprocess()
+# coupon_sales_processor.calculate_coupon_sales()
 
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
+# coupon_sales = coupon_sales_processor.get_coupon_sales()
+# coupon_sales
 
 
 
